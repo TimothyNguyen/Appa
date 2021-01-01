@@ -18,3 +18,5 @@ package-lock.json
 # Config files
 config/.env
 config/*.json
+
+.env
