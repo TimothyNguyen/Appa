@@ -16,7 +16,7 @@ import PrivateRoute from './components/PrivateRoute';
 import setAuthToken from './utils/setAuthToken';
 import { milisecondsToSeconds } from './utils/dateTime';
 
-import './App.css';
+import './styles/App.css';
 
 // Check for token to keep user logged in
 /*
