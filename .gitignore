@@ -1,0 +1,22 @@
+# VS Code config
+.vscode/
+
+# Python cache files
+**/**.pyc
+
+# Node modules
+node_modules
+client/node_modules
+
+# Lock files
+package-lock.json
+*.lock
+
+# Log files
+*.log
+
+# Config files
+config/.env
+config/*.json
+
+.env
