@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -145,19 +147,22 @@ func createToken(id primitive.ObjectID) (UserToken, error) {
 	return td, nil
 }
 
-// store token into redis
-func createAuth(userID primitive.ObjectID, td UserToken) error {
-	at := time.Unix(td.AtExpires, 0) //converting Unix to UTC(to Time object)
-	rt := time.Unix(td.RtExpires, 0)
-	now := time.Now()
+func Refresh(c *gin.Context) {
+	bearToken := c.Request.Header.Get("Authorization")
+	strArr := strings.Split(bearToken, " ")
+	if len(strArr) != 2 {
+		f := xFeedback("No token found in the header")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	tokenString := strArr[1]
+	token, err := VerifyToken(tokenString, accessSecret)
+	fmt.Println(token)
 
-	errAccess := rdb.Set(td.AccessUUID, userID.Hex(), at.Sub(now)).Err()
-	if errAccess != nil {
-		return errAccess
+	if err != nil {
+		f := xFeedback("Access token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
 	}
-	errRefresh := rdb.Set(td.RefreshUUID, userID.Hex(), rt.Sub(now)).Err()
-	if errRefresh != nil {
-		return errRefresh
-	}
-	return nil
+	// get id from token
 }

@@ -2,7 +2,11 @@ package main
 
 import (
 	"os"
+
+	"github.com/dgrijalva/jwt-go"
 )
+
+type signingMethod = jwt.SigningMethodHMAC
 
 var accessSecret = []byte(os.Getenv("JWT_ACCESS_KEY")) // change this to os.Getenv("ACCESS_SECRET") for deployment
 
