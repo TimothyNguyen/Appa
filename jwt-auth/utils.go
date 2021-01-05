@@ -7,6 +7,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/twinj/uuid"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -41,6 +42,7 @@ func createAuth(userID primitive.ObjectID, td UserToken) error {
 	return nil
 }
 
+// TokenAuthMiddleware check the access token is valid before execute next router
 func TokenAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		bearToken := c.Request.Header.Get("Authorization")
@@ -61,6 +63,7 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+// VerifyToken verifies the token is valid using a given key
 func VerifyToken(tokenString string, secret []byte) (*jwt.Token, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		//Make sure that the token method conform to "SigningMethodHMAC"
@@ -73,4 +76,34 @@ func VerifyToken(tokenString string, secret []byte) (*jwt.Token, error) {
 		return nil, err
 	}
 	return token, nil
+}
+func createToken(id primitive.ObjectID) (UserToken, error) {
+	var err error
+	td := UserToken{}
+	empty := UserToken{}
+	td.AtExpires = time.Now().Add(time.Minute * 30).Unix()
+	td.AccessUUID = uuid.NewV4().String()
+	td.RtExpires = time.Now().Add(time.Hour * 24 * 14).Unix()
+	td.RefreshUUID = uuid.NewV4().String()
+	atClaim := jwt.MapClaims{}
+	atClaim["authorized"] = true
+	atClaim["access_uuid"] = td.AccessUUID
+	atClaim["_id"] = id
+	atClaim["expire"] = td.AtExpires
+	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaim)
+	td.AccessToken, err = at.SignedString(accessSecret)
+	if err != nil {
+		return empty, err
+	}
+
+	rtClaim := jwt.MapClaims{}
+	rtClaim["refresh_uuid"] = td.RefreshUUID
+	rtClaim["_id"] = id
+	rtClaim["expire"] = td.RtExpires
+	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaim)
+	td.RefreshToken, err = rt.SignedString([]byte(refreshSecret))
+	if err != nil {
+		return empty, err
+	}
+	return td, nil
 }

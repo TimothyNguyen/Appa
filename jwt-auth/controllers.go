@@ -2,16 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/twinj/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -116,38 +114,66 @@ func register(c *gin.Context) {
 	c.JSON(http.StatusOK, f)
 }
 
-func createToken(id primitive.ObjectID) (UserToken, error) {
-	var err error
-	td := UserToken{}
-	empty := UserToken{}
-	td.AtExpires = time.Now().Add(time.Minute * 30).Unix()
-	td.AccessUUID = uuid.NewV4().String()
-	td.RtExpires = time.Now().Add(time.Hour * 24 * 14).Unix()
-	td.RefreshUUID = uuid.NewV4().String()
-	atClaim := jwt.MapClaims{}
-	atClaim["authorized"] = true
-	atClaim["access_uuid"] = td.AccessUUID
-	atClaim["_id"] = id
-	atClaim["expire"] = td.AtExpires
-	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaim)
-	td.AccessToken, err = at.SignedString(accessSecret)
-	if err != nil {
-		return empty, err
+func refresh(c *gin.Context) {
+	mapToken := map[string]string{}
+	if err := c.ShouldBindJSON(&mapToken); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
-	rtClaim := jwt.MapClaims{}
-	rtClaim["refresh_uuid"] = td.RefreshUUID
-	rtClaim["_id"] = id
-	rtClaim["expire"] = td.RtExpires
-	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaim)
-	td.RefreshToken, err = rt.SignedString([]byte(refreshSecret))
+	tokenString := mapToken["refresh_token"]
+	token, err := VerifyToken(tokenString, refreshSecret)
+	fmt.Println(token)
+
 	if err != nil {
-		return empty, err
+		f := xFeedback("Refresh token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
 	}
-	return td, nil
+	// get id from token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		f := xFeedback("Refresh token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	uuid := claims["uuid"].(string)
+	userIDString, err := rdb.Get(uuid).Result()
+	userIDHex, err := hex.DecodeString(userIDString)
+	if err != nil || len(userIDHex) != 12 {
+		f := xFeedback("_id not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	var userID [12]byte
+	copy(userID[:], userIDHex[:])
+	_, err = rdb.Del(uuid).Result()
+	if err != nil {
+		f := xFeedback("Refresh token not deleted")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	td, err := createToken(userID)
+	if err != nil {
+		f := xFeedback("Fail to generate new token")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	saveErr := createAuth(userID, td)
+	if saveErr != nil {
+		f := xFeedback("Fail to save new token")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	tokens := map[string]string{
+		"access_token":  td.AccessToken,
+		"refresh_token": td.RefreshToken,
+	}
+	f := yFeedback(tokens)
+	c.JSON(http.StatusOK, f)
 }
 
-func Refresh(c *gin.Context) {
+func logout(c *gin.Context) {
 	bearToken := c.Request.Header.Get("Authorization")
 	strArr := strings.Split(bearToken, " ")
 	if len(strArr) != 2 {
@@ -157,12 +183,26 @@ func Refresh(c *gin.Context) {
 	}
 	tokenString := strArr[1]
 	token, err := VerifyToken(tokenString, accessSecret)
-	fmt.Println(token)
-
 	if err != nil {
 		f := xFeedback("Access token not valid")
 		c.JSON(http.StatusUnauthorized, f)
 		return
 	}
 	// get id from token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		f := xFeedback("Access token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	uuid := claims["uuid"].(string)
+	_, err = rdb.Del(uuid).Result()
+	if err != nil {
+		f := xFeedback("token not found")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	f := yFeedback(nil)
+	c.JSON(http.StatusOK, f)
+	return
 }

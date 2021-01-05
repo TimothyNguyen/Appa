@@ -26,9 +26,12 @@ var clientOptions = options.Client().ApplyURI(mongodbURL)
 var mongodb, err = mongo.Connect(context.Background(), clientOptions)
 
 // connect to collection
-var userCollection = mongodb.Database("uplink-test").Collection("users")
+var userCollection = mongodb.Database("appa-test").Collection("users")
 
 func main() {
+	fmt.Println("MongoDB: " + mongodbURL)
+	fmt.Println("ACCESS_SECRET: " + string(accessSecret))
+	fmt.Println("REFRESH_SECRET: " + string(refreshSecret))
 	var r = gin.Default()
 	// Check the connection
 	err = mongodb.Ping(context.TODO(), readpref.Primary())
@@ -45,5 +48,7 @@ func main() {
 
 	r.POST("/login", login)
 	r.POST("/register", register)
+	r.POST("/refresh", refresh)
+	r.POST("/logout", logout)
 	r.Run(":8000")
 }
