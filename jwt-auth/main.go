@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log"
 
-	"go.mongodb.org/mongo-driver/mongo/readpref"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var rdb = redis.NewClient(&redis.Options{
@@ -51,4 +50,5 @@ func main() {
 	r.POST("/refresh", refresh)
 	r.POST("/logout", logout)
 	r.Run(":8000")
+
 }

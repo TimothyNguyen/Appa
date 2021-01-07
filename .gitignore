@@ -19,4 +19,4 @@ package-lock.json
 config/.env
 config/*.json
 
-/.env
+.env
