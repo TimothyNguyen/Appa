@@ -2,10 +2,10 @@
 FROM node:12.18.3-alpine
 
 # set working directory
-WORKDIR /app
+WORKDIR /src
 
 # add `/app/node_modules/.bin` to $PATH
-ENV PATH /app/node_modules/.bin:$PATH
+ENV PATH /src/node_modules/.bin:$PATH
 
 # install app dependencies
 COPY package*.json ./
@@ -15,4 +15,4 @@ RUN npm install --silent
 COPY . ./
 
 # start app
-CMD ["npm", "run", "docker"]
+CMD ["npm", "start"]
