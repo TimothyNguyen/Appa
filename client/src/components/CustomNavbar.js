@@ -5,9 +5,28 @@ import PropTypes from 'prop-types';
 import { Container, Nav, Navbar } from 'react-bootstrap';
 import { Button } from 'antd';
 
-function CustomNavbar() {
-    // const logout = () => logoutUser();
+import { logoutUser } from '../redux/actions/authActions';
+
+function CustomNavbar({ auth, logoutUser }) {
+    const logout = () => logoutUser();
     const route = window.location.pathname.substr(1);
+    
+    const { isAuthenticated } = auth;
+
+    const loggedInNav = (route) => (
+      <>
+        <Nav.Link href="/" active={route === ''}>
+          Home
+        </Nav.Link>
+        <Nav.Link href="/profile" active={route === 'profile'}>
+          Profile
+        </Nav.Link>
+        <Nav.Link onClick={logout}>
+          <Button shape="round">Log out</Button>
+        </Nav.Link>{' '}
+      </>
+    )
+
     const loggedOutNav = (route) => (
         <>
         <Nav.Link href="/login" active={route === 'login'}>
@@ -27,7 +46,7 @@ function CustomNavbar() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
             <Nav className="mr-right">
-              {loggedOutNav(route)}
+              {isAuthenticated ? loggedInNav(route) : loggedOutNav(route)}
             </Nav>
           </Navbar.Collapse>
         </Container>
