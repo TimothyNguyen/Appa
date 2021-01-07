@@ -9,13 +9,13 @@ import { Container } from 'react-bootstrap';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 
-import store from "./redux/store";
-
-import NavBar from './components/NavBar';
-import Footer from './components/Footer';
+import NavBar from './components/CustomNavbar';
+// import Footer from './components/Footer';
 import PrivateRoute from './components/PrivateRoute';
 import setAuthToken from './utils/setAuthToken';
 import { milisecondsToSeconds } from './utils/dateTime';
+
+import store from "./redux/store";
 
 import './styles/App.css';
 
@@ -37,12 +37,23 @@ if (localStorage.jwtToken) {
 function App() {
   return (
     <div style={{ minHeight: '100vh', background: '#eeeeee' }}>
-      <Provider store={store}>
-      <NavBar />
-        <Switch>
-          <Route path="/login" component={Login} />
-          <Route path="/signup" component={Signup} />
-        </Switch>
+      <Provider store={store}> 
+        <NavBar />
+        <main>
+          <Switch>
+            <Route path="/login" component={Login} />
+            <Route path="/signup" component={Signup} />
+            <>
+              <Container
+                  style={{
+                    marginTop: '25px',
+                    background: '#ffffff',
+                  }}>
+            
+              </Container>
+            </>
+          </Switch>
+        </main>
       </Provider>
     </div>
   );

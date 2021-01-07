@@ -65,4 +65,21 @@ const Login = ({ auth, loginUserAction, history, errors }) => {
 
 };
 
-export default Login;
+
+Login.propTypes = {
+    loginUserAction: PropTypes.func.isRequired,
+    history: PropTypes.shape({
+      push: PropTypes.func.isRequired,
+    }).isRequired,
+    // eslint-disable-next-line react/forbid-prop-types
+    auth: PropTypes.object.isRequired,
+    // eslint-disable-next-line react/forbid-prop-types
+    errors: PropTypes.object.isRequired,
+  };
+  
+  const mapStateToProps = (state) => ({
+    auth: state.auth,
+    errors: state.errors,
+  });
+  
+  export default connect(mapStateToProps, { })(Login);
