@@ -17,8 +17,8 @@ services:
         ports:
             - 6379:6379
     
-    client:
-        build: ./client
-        ports:
-            - 3000:3000
-        restart: always
+    # client:
+    #     build: ./client
+    #     ports:
+    #         - 3000:3000
+    #     restart: always
