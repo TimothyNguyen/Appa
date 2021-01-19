@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,6 +33,7 @@ func login(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err = userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
+		fmt.Println(2)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "User not found")
 		c.JSON(http.StatusUnauthorized, f)
@@ -39,6 +43,7 @@ func login(c *gin.Context) {
 	// Authenticate user password (done)
 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(u.Password))
 	if err != nil {
+		fmt.Println(3)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Email or password incorrect")
 		c.JSON(http.StatusUnauthorized, f)
@@ -48,6 +53,7 @@ func login(c *gin.Context) {
 	// Create token pari
 	td, err := createToken(result.ID)
 	if err != nil {
+		fmt.Println(4)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token not created")
 		f.Msgs = append(f.Msgs, err.Error())
@@ -58,6 +64,7 @@ func login(c *gin.Context) {
 	// save token into redis (done)
 	saveErr := createAuth(result.ID, td)
 	if saveErr != nil {
+		fmt.Println(5)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token created but not saved")
 		f.Msgs = append(f.Msgs, saveErr.Error())
@@ -68,6 +75,7 @@ func login(c *gin.Context) {
 	tokens := map[string]string{
 		"access_token":  td.AccessToken,
 		"refresh_token": td.RefreshToken,
+		"token":         td.RefreshToken,
 	}
 	f.Status = "success"
 	f.Data = tokens
@@ -102,11 +110,18 @@ func register(c *gin.Context) {
 
 	// Hash User password and store it into database
 	bytes, err := bcrypt.GenerateFromPassword([]byte(u.Password), 5)
-	insertUser := bson.M{
-		"name":     u.Name,
-		"email":    u.Email,
-		"password": string(bytes),
+	uuidWithHyphen := uuid.New()
+	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
+
+	insertUser := User{
+		Name:                 u.Name,
+		Email:                u.Email,
+		Password:             string(bytes),
+		Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
+		VerificationURLCode:  uuid,
+		PasswordResetURLCode: "",
 	}
+
 	_, err = userCollection.InsertOne(context.TODO(), insertUser)
 	if err != nil {
 		panic(err)

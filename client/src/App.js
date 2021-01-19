@@ -24,10 +24,10 @@ import './styles/App.css';
 
 // Check for token to keep user logged in
 
-if (localStorage.jwtToken) {
+if (localStorage.jwtToken && localStorage.jwtToken !== "undefined") {
   const token = localStorage.jwtToken;
   setAuthToken(token);
-  const decoded = jwtDecode(token);
+  const decoded = jwtDecode(token, { header: true });
   store.dispatch(setCurrentUser(decoded));
   const currentTime = milisecondsToSeconds(Date.now());
   if (decoded.exp < currentTime) {
@@ -35,6 +35,7 @@ if (localStorage.jwtToken) {
     window.location.href = './login';
   }
 }
+
 
 function App() {
   return (

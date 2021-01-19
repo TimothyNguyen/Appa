@@ -52,7 +52,7 @@ const Signup = ({ auth, errors, registerUserAction, history }) => {
             >
               <Form.Item
                 label="Name"
-                name="name"
+                name="Name"
                 rules={[
                   {
                     required: true,
@@ -64,7 +64,7 @@ const Signup = ({ auth, errors, registerUserAction, history }) => {
               </Form.Item>
               <Form.Item
                 label="Email"
-                name="email"
+                name="Email"
                 rules={[
                   {
                     required: true,
@@ -76,7 +76,7 @@ const Signup = ({ auth, errors, registerUserAction, history }) => {
               </Form.Item>
               <Form.Item
                 label="Password"
-                name="password"
+                name="Password"
                 rules={[
                   {
                     required: true,

@@ -34,7 +34,7 @@ export const registerUser = (userData, history) => (dispatch) => {
     .catch((err) => {
         dispatch({
             type: GET_ERRORS,
-            payload: err,
+            payload: err.response.data,
         });
     });
 };
@@ -47,10 +47,11 @@ export const loginUser = (userData, history) => (dispatch) => {
             // eslint-disable-next-line no-console
             console.log(res.json());
         }
-        
-        const { token } = res.data;
+        // console.log(res.data.data);
+        const { token } = res.data.data;
         // Set token to localStorage
         localStorage.setItem('jwtToken', token);
+        console.log(token);
         // Set token to auth header
         setAuthToken(token);
         // Decode token to get user data
@@ -63,16 +64,19 @@ export const loginUser = (userData, history) => (dispatch) => {
         history.push('/');
     })
     .catch((err) => {
+        console.log(err.message);
         // eslint-disable-next-line no-console
+        /*
         console.log(err.response.data);
         if (typeof err.response.data.emailnotfound !== 'undefined') {
             message.error("Email doesn't exist");
         } else if (typeof err.response.data.passwordincorrect !== 'undefined') {
             message.error('Password is incorrect');
         }
+        */
         dispatch({
             type: GET_ERRORS,
-            payload: err.response.data,
+            payload: err.message,
         });
     });
 };
