@@ -29,19 +29,19 @@ export const setUserLoading = () => ({
  */
 export const registerUser = (userData, history) => (dispatch) => {
     axios
-    .post('/auth/register', userData)
+    .post('http://localhost:8000/register', userData)
     .then(() => history.push('/login'))
     .catch((err) => {
         dispatch({
             type: GET_ERRORS,
-            payload: err.response.data,
+            payload: err,
         });
     });
 };
 
 export const loginUser = (userData, history) => (dispatch) => {
     axios
-    .post('/auth/login', userData)
+    .post('http://localhost:8000/login', userData)
     .then((res) => {
         if (res.status === 400) {
             // eslint-disable-next-line no-console

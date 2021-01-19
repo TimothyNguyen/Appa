@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Form, Input, Button, message } from 'antd';
 
+import { loginUser } from '../redux/actions/authActions';
+
 import Background from '../assets/leaves.jpg';
 
 const Login = ({ auth, loginUserAction, history, errors }) => {
@@ -65,7 +67,6 @@ const Login = ({ auth, loginUserAction, history, errors }) => {
 
 };
 
-
 Login.propTypes = {
     loginUserAction: PropTypes.func.isRequired,
     history: PropTypes.shape({
@@ -82,4 +83,4 @@ Login.propTypes = {
     errors: state.errors,
   });
   
-  export default connect(mapStateToProps, { })(Login);
+  export default connect(mapStateToProps, { loginUserAction: loginUser })(Login);

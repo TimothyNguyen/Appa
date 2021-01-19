@@ -66,5 +66,5 @@ On failure:
 }
 
 To build the data:
-docker-compose up —build
+docker-compose up --build
 

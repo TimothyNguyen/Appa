@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +32,7 @@ func main() {
 	fmt.Println("MongoDB: " + mongodbURL)
 	fmt.Println("ACCESS_SECRET: " + string(accessSecret))
 	fmt.Println("REFRESH_SECRET: " + string(refreshSecret))
-	var r = gin.Default()
+	r := gin.Default()
 	// Check the connection
 	err = mongodb.Ping(context.TODO(), readpref.Primary())
 	if err != nil {
@@ -44,11 +45,10 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(pong, err)
-
+	r.Use(cors.Default())
 	r.POST("/login", login)
 	r.POST("/register", register)
 	r.POST("/refresh", refresh)
 	r.POST("/logout", logout)
 	r.Run(":8000")
-
 }

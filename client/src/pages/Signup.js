@@ -3,23 +3,24 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Form, Input, Button } from 'antd';
 
+import { registerUser } from '../redux/actions/authActions';
+
 import Background from '../assets/waves.svg';
 
 const Signup = ({ auth, errors, registerUserAction, history }) => {
     
     const onFinish = (values) => {
-        // registerUserAction(values, history);
+        registerUserAction(values, history);
     };
 
     const onFinishFailed = (errorInfo) => {
-    // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.log('Failed:', errorInfo, errors);
     };
-    /*
+  
     if (auth.isAuthenticated) {
         history.push('/');
     }
-    */
 
     return (
         <div
@@ -37,9 +38,8 @@ const Signup = ({ auth, errors, registerUserAction, history }) => {
               width: '550px',
               padding: '25px',
               background: '#ffffff',
-              // border: "solid 1px #000000"
-            }}
-          >
+              border: "solid 1px #000000"
+            }}>
             <h4>Sign up</h4>
             <Form
               layout="vertical"
@@ -109,4 +109,22 @@ const Signup = ({ auth, errors, registerUserAction, history }) => {
     );
 };
 
-export default Signup;
+Signup.propTypes = {
+  registerUserAction: PropTypes.func.isRequired,
+  history: PropTypes.shape({
+    push: PropTypes.func.isRequired,
+  }).isRequired,
+  // eslint-disable-next-line react/forbid-prop-types
+  auth: PropTypes.object.isRequired,
+  // eslint-disable-next-line react/forbid-prop-types
+  errors: PropTypes.object.isRequired,
+};
+
+const mapStateToProps = (state) => ({
+  auth: state.auth,
+  errors: state.errors,
+});
+
+export default connect(mapStateToProps, { registerUserAction: registerUser })(
+  Signup
+);

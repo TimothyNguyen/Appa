@@ -81,7 +81,7 @@ func register(c *gin.Context) {
 	var result User // result from database
 
 	if err := c.ShouldBind(&u); err != nil {
-		f.Status = "unsuccess"
+		f.Status = "400"
 		f.Msgs = append(f.Msgs, "Invalid register form")
 		c.JSON(http.StatusUnprocessableEntity, f)
 		return
@@ -92,7 +92,7 @@ func register(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err := userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err == nil {
-		f.Status = "unsuccess"
+		f.Status = "400"
 		f.Msgs = append(f.Msgs, "Email exists")
 		c.JSON(http.StatusUnauthorized, f)
 		return
@@ -103,6 +103,7 @@ func register(c *gin.Context) {
 	// Hash User password and store it into database
 	bytes, err := bcrypt.GenerateFromPassword([]byte(u.Password), 5)
 	insertUser := bson.M{
+		"name":     u.Name,
 		"email":    u.Email,
 		"password": string(bytes),
 	}
@@ -111,7 +112,7 @@ func register(c *gin.Context) {
 		panic(err)
 	}
 	f.Status = "success"
-	c.JSON(http.StatusOK, f)
+	c.JSON(http.StatusOK, insertUser)
 }
 
 func refresh(c *gin.Context) {

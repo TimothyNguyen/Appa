@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+    jwt-auth:
+        container_name: 'jwt-auth'
+        build: ./jwt-auth
+        ports:
+            - 8000:8000
+        depends_on: 
+            - redis
+        environment: 
+            MONGODB_URL: ${MONGODB_URL}
+            JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
+            JWT_REFRESH_KEY: ${JWT_REFRESH_KEY}
+
+    redis:
+        container_name: 'redix'
+        image: redis
+        ports:
+            - 6379:6379
+    
+    client:
+        container_name: 'client'
+        build: ./client
+        ports:
+            - 3000:3000
+        restart: always
+    
+    live-reloader:
+      image: appa/livereloading
+      container_name: livereloader
+      privileged: true
+      environment:
+        - RELOAD_DELAY=2 # seconds
+        - RELOAD_CONTAINER=client
+        # - RELOAD_DIRS=/code
+        - RESTART_TIMEOUT=1
+        - RELOAD_LABEL=live-reload
+      volumes:
+        - "/var/run/docker.sock:/var/run/docker.sock"
+        # - ".:/code"

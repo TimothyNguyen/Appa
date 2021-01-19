@@ -9,6 +9,7 @@ import (
 // User - info required for login
 type User struct {
 	ID       primitive.ObjectID `bson:"_id" json:"_id,omitempty" `
+	Name     string             `form:"name" binding:"required"`
 	Email    string             `form:"email" binding:"required"`
 	Password string             `form:"password" binding:"required"`
 }
