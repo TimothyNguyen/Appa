@@ -64,3 +64,7 @@ On failure:
     msgs: [ string, ... ], // error msg
     data: null
 }
+
+To build the data:
+docker-compose up --build
+

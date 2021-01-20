@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/twinj/uuid"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
@@ -30,6 +33,7 @@ func login(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err = userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
+		fmt.Println(2)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "User not found")
 		c.JSON(http.StatusUnauthorized, f)
@@ -39,6 +43,7 @@ func login(c *gin.Context) {
 	// Authenticate user password (done)
 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(u.Password))
 	if err != nil {
+		fmt.Println(3)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Email or password incorrect")
 		c.JSON(http.StatusUnauthorized, f)
@@ -48,6 +53,7 @@ func login(c *gin.Context) {
 	// Create token pari
 	td, err := createToken(result.ID)
 	if err != nil {
+		fmt.Println(4)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token not created")
 		f.Msgs = append(f.Msgs, err.Error())
@@ -58,6 +64,7 @@ func login(c *gin.Context) {
 	// save token into redis (done)
 	saveErr := createAuth(result.ID, td)
 	if saveErr != nil {
+		fmt.Println(5)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token created but not saved")
 		f.Msgs = append(f.Msgs, saveErr.Error())
@@ -68,6 +75,7 @@ func login(c *gin.Context) {
 	tokens := map[string]string{
 		"access_token":  td.AccessToken,
 		"refresh_token": td.RefreshToken,
+		"token":         td.RefreshToken,
 	}
 	f.Status = "success"
 	f.Data = tokens
@@ -81,7 +89,7 @@ func register(c *gin.Context) {
 	var result User // result from database
 
 	if err := c.ShouldBind(&u); err != nil {
-		f.Status = "unsuccess"
+		f.Status = "400"
 		f.Msgs = append(f.Msgs, "Invalid register form")
 		c.JSON(http.StatusUnprocessableEntity, f)
 		return
@@ -92,7 +100,7 @@ func register(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err := userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err == nil {
-		f.Status = "unsuccess"
+		f.Status = "400"
 		f.Msgs = append(f.Msgs, "Email exists")
 		c.JSON(http.StatusUnauthorized, f)
 		return
@@ -102,62 +110,115 @@ func register(c *gin.Context) {
 
 	// Hash User password and store it into database
 	bytes, err := bcrypt.GenerateFromPassword([]byte(u.Password), 5)
-	insertUser := bson.M{
-		"email":    u.Email,
-		"password": string(bytes),
+	uuidWithHyphen := uuid.New()
+	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
+
+	insertUser := User{
+		Name:                 u.Name,
+		Email:                u.Email,
+		Password:             string(bytes),
+		Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
+		VerificationURLCode:  uuid,
+		PasswordResetURLCode: "",
 	}
+
 	_, err = userCollection.InsertOne(context.TODO(), insertUser)
 	if err != nil {
 		panic(err)
 	}
 	f.Status = "success"
+	c.JSON(http.StatusOK, insertUser)
+}
+
+func refresh(c *gin.Context) {
+	mapToken := map[string]string{}
+	if err := c.ShouldBindJSON(&mapToken); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	tokenString := mapToken["refresh_token"]
+	token, err := VerifyToken(tokenString, refreshSecret)
+	fmt.Println(token)
+
+	if err != nil {
+		f := xFeedback("Refresh token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	// get id from token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		f := xFeedback("Refresh token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	uuid := claims["uuid"].(string)
+	userIDString, err := rdb.Get(uuid).Result()
+	userIDHex, err := hex.DecodeString(userIDString)
+	if err != nil || len(userIDHex) != 12 {
+		f := xFeedback("_id not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	var userID [12]byte
+	copy(userID[:], userIDHex[:])
+	_, err = rdb.Del(uuid).Result()
+	if err != nil {
+		f := xFeedback("Refresh token not deleted")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	td, err := createToken(userID)
+	if err != nil {
+		f := xFeedback("Fail to generate new token")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	saveErr := createAuth(userID, td)
+	if saveErr != nil {
+		f := xFeedback("Fail to save new token")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	tokens := map[string]string{
+		"access_token":  td.AccessToken,
+		"refresh_token": td.RefreshToken,
+	}
+	f := yFeedback(tokens)
 	c.JSON(http.StatusOK, f)
 }
 
-func createToken(id primitive.ObjectID) (UserToken, error) {
-	var err error
-	td := UserToken{}
-	empty := UserToken{}
-	td.AtExpires = time.Now().Add(time.Minute * 30).Unix()
-	td.AccessUUID = uuid.NewV4().String()
-	td.RtExpires = time.Now().Add(time.Hour * 24 * 14).Unix()
-	td.RefreshUUID = uuid.NewV4().String()
-	atClaim := jwt.MapClaims{}
-	atClaim["authorized"] = true
-	atClaim["access_uuid"] = td.AccessUUID
-	atClaim["_id"] = id
-	atClaim["expire"] = td.AtExpires
-	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaim)
-	td.AccessToken, err = at.SignedString(accessSecret)
+func logout(c *gin.Context) {
+	bearToken := c.Request.Header.Get("Authorization")
+	strArr := strings.Split(bearToken, " ")
+	if len(strArr) != 2 {
+		f := xFeedback("No token found in the header")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	tokenString := strArr[1]
+	token, err := VerifyToken(tokenString, accessSecret)
 	if err != nil {
-		return empty, err
+		f := xFeedback("Access token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
 	}
-
-	rtClaim := jwt.MapClaims{}
-	rtClaim["refresh_uuid"] = td.RefreshUUID
-	rtClaim["_id"] = id
-	rtClaim["expire"] = td.RtExpires
-	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaim)
-	td.RefreshToken, err = rt.SignedString([]byte(refreshSecret))
+	// get id from token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		f := xFeedback("Access token not valid")
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
+	uuid := claims["uuid"].(string)
+	_, err = rdb.Del(uuid).Result()
 	if err != nil {
-		return empty, err
+		f := xFeedback("token not found")
+		c.JSON(http.StatusUnauthorized, f)
+		return
 	}
-	return td, nil
-}
-
-// store token into redis
-func createAuth(userID primitive.ObjectID, td UserToken) error {
-	at := time.Unix(td.AtExpires, 0) //converting Unix to UTC(to Time object)
-	rt := time.Unix(td.RtExpires, 0)
-	now := time.Now()
-
-	errAccess := rdb.Set(td.AccessUUID, userID.Hex(), at.Sub(now)).Err()
-	if errAccess != nil {
-		return errAccess
-	}
-	errRefresh := rdb.Set(td.RefreshUUID, userID.Hex(), rt.Sub(now)).Err()
-	if errRefresh != nil {
-		return errRefresh
-	}
-	return nil
+	f := yFeedback(nil)
+	c.JSON(http.StatusOK, f)
+	return
 }
