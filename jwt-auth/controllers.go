@@ -37,7 +37,6 @@ func login(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err = userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
-		fmt.Println(2)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "User not found")
 		c.JSON(http.StatusUnauthorized, f)
@@ -47,7 +46,6 @@ func login(c *gin.Context) {
 	// Authenticate user password (done)
 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(u.Password))
 	if err != nil {
-		fmt.Println(3)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Email or password incorrect")
 		c.JSON(http.StatusUnauthorized, f)
@@ -57,7 +55,6 @@ func login(c *gin.Context) {
 	// Create token pari
 	td, err := createToken(result.ID)
 	if err != nil {
-		fmt.Println(4)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token not created")
 		f.Msgs = append(f.Msgs, err.Error())
@@ -68,7 +65,6 @@ func login(c *gin.Context) {
 	// save token into redis (done)
 	saveErr := createAuth(result.ID, td)
 	if saveErr != nil {
-		fmt.Println(5)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token created but not saved")
 		f.Msgs = append(f.Msgs, saveErr.Error())
@@ -124,13 +120,24 @@ func register(c *gin.Context) {
 	uuidWithHyphen := uuid.New()
 	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
 
-	insertUser := User{
-		Name:                 u.Name,
-		Email:                u.Email,
-		Password:             string(bytes),
-		Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
-		VerificationURLCode:  uuid,
-		PasswordResetURLCode: "",
+	/*
+		insertUser := User{
+			Id:
+			Name:                 u.Name,
+			Email:                u.Email,
+			Password:             string(bytes),
+			Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
+			VerificationURLCode:  ,
+			PasswordResetURLCode: "",
+		}
+	*/
+	insertUser := bson.M{
+		"name":                    u.Name,
+		"email":                   u.Email,
+		"password":                string(bytes),
+		"date":                    primitive.Timestamp{T: uint32(time.Now().Unix())},
+		"verification_url_code":   uuid,
+		"password_reset_url_code": "",
 	}
 
 	_, err = userCollection.InsertOne(context.TODO(), insertUser)
@@ -239,7 +246,7 @@ func logout(c *gin.Context) {
 // MX record
 func isEmailValid(userEmail string, userPassword string) (bool, string) {
 	// 1. Looking at email
-	if len(userEmail) < 8 && len(userEmail) > 254 {
+	if len(userEmail) < 8 || len(userEmail) > 254 {
 		return false, "The length of the email isn't valid."
 	}
 	if !emailRegex.MatchString(userEmail) {
@@ -252,7 +259,7 @@ func isEmailValid(userEmail string, userPassword string) (bool, string) {
 	}
 
 	// 2. Looking at password
-	if len(userPassword) < 10 && len(userPassword) > 100 {
+	if len(userPassword) < 10 || len(userPassword) > 100 {
 		return false, "The length of the password is invalid. Needs to be between 10 and 100 characters."
 	}
 
