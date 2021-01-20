@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +17,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 func login(c *gin.Context) {
 	var u User      // request form
@@ -107,6 +111,13 @@ func register(c *gin.Context) {
 	}
 
 	// TODO: check email and password format is valid
+	validFormat, message := isEmailValid(u.Email, u.Password)
+	if !validFormat {
+		f.Status = "400"
+		f.Msgs = append(f.Msgs, message)
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
 
 	// Hash User password and store it into database
 	bytes, err := bcrypt.GenerateFromPassword([]byte(u.Password), 5)
@@ -221,4 +232,29 @@ func logout(c *gin.Context) {
 	f := yFeedback(nil)
 	c.JSON(http.StatusOK, f)
 	return
+}
+
+// isEmailValid check if the email provided passes the required
+// structure and length test. It also checks the domain has a valid
+// MX record
+func isEmailValid(userEmail string, userPassword string) (bool, string) {
+	// 1. Looking at email
+	if len(userEmail) < 8 && len(userEmail) > 254 {
+		return false, "The length of the email isn't valid."
+	}
+	if !emailRegex.MatchString(userEmail) {
+		return false, "The provided email isn't a valid email"
+	}
+	parts := strings.Split(userEmail, "@")
+	mx, err := net.LookupMX(parts[1])
+	if err != nil || len(mx) == 0 {
+		return false, "The provided email isn't a valid email"
+	}
+
+	// 2. Looking at password
+	if len(userPassword) < 10 && len(userPassword) > 100 {
+		return false, "The length of the password is invalid. Needs to be between 10 and 100 characters."
+	}
+
+	return true, "The email and password is valid"
 }

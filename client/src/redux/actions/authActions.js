@@ -32,9 +32,11 @@ export const registerUser = (userData, history) => (dispatch) => {
     .post('http://localhost:8000/register', userData)
     .then(() => history.push('/login'))
     .catch((err) => {
+        console.log("Hi")
+        console.log(err)
         dispatch({
             type: GET_ERRORS,
-            payload: err.response.data,
+            payload: err,
         });
     });
 };
@@ -64,7 +66,7 @@ export const loginUser = (userData, history) => (dispatch) => {
         history.push('/');
     })
     .catch((err) => {
-        console.log(err.message);
+        console.log(err);
         // eslint-disable-next-line no-console
         /*
         console.log(err.response.data);
