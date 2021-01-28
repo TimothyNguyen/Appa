@@ -53,7 +53,7 @@ func login(c *gin.Context) {
 	}
 
 	// Create token pari
-	td, err := createToken(result.ID)
+	td, err := createTokenWithUser(result.ID, result)
 	if err != nil {
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token not created")
@@ -73,9 +73,15 @@ func login(c *gin.Context) {
 	}
 
 	tokens := map[string]string{
-		"access_token":  td.AccessToken,
-		"refresh_token": td.RefreshToken,
-		"token":         td.RefreshToken,
+		"access_token":    td.AccessToken,
+		"refresh_token":   td.RefreshToken,
+		"id":              result.ID.String(),
+		"name":            result.Name,
+		"email":           result.Email,
+		"phone_number":    result.Password,
+		"github_username": result.GithubUsername,
+		"linkedin":        result.Linkedin,
+		"user_type":       result.UserType,
 	}
 	f.Status = "success"
 	f.Data = tokens
@@ -135,9 +141,13 @@ func register(c *gin.Context) {
 		"name":                    u.Name,
 		"email":                   u.Email,
 		"password":                string(bytes),
+		"phone_number":            "",
+		"github_username":         "",
+		"linkedin":                "",
 		"date":                    primitive.Timestamp{T: uint32(time.Now().Unix())},
 		"verification_url_code":   uuid,
 		"password_reset_url_code": "",
+		"user_type":               "user",
 	}
 
 	_, err = userCollection.InsertOne(context.TODO(), insertUser)
@@ -149,6 +159,8 @@ func register(c *gin.Context) {
 }
 
 func refresh(c *gin.Context) {
+	//var result User // result from database
+
 	mapToken := map[string]string{}
 	if err := c.ShouldBindJSON(&mapToken); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, err.Error())

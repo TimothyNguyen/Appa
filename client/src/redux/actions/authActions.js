@@ -32,7 +32,6 @@ export const registerUser = (userData, history) => (dispatch) => {
     .post('http://localhost:8000/register', userData)
     .then(() => history.push('/login'))
     .catch((err) => {
-        console.log("Hi")
         console.log(err)
         dispatch({
             type: GET_ERRORS,
@@ -49,17 +48,17 @@ export const loginUser = (userData, history) => (dispatch) => {
             // eslint-disable-next-line no-console
             console.log(res.json());
         }
-        // console.log(res.data.data);
-        const { token } = res.data.data;
-        // Set token to localStorage
-        localStorage.setItem('jwtToken', token);
-        console.log(token);
+        const { access_token } = res.data.data;
         // Set token to auth header
-        setAuthToken(token);
+        setAuthToken(access_token);
+        // console.log(res.data.data)
         // Decode token to get user data
-        const decoded = jwtDecode(token);
+        const decoded = jwtDecode(access_token);
         // Set current user
-        dispatch(setCurrentUser(decoded));
+        dispatch(setCurrentUser(decoded.user));
+        // Set token to localStorage
+        localStorage.setItem('jwtToken', JSON.stringify(res.data));
+        // localStorage.setItem('user', decoded.user);
         // Add possible message
         message.success('Login Successful');
         // Go to the home page

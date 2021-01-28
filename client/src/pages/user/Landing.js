@@ -19,23 +19,23 @@ const Landing = ({ auth }) => {
         and will have further updates soon.
         </p>
         <Button
-            type="primary"
-            size="large"
-            href="/profile"
-            style={{ margin: '8px' }}>
-            Profile
+          type="primary"
+          size="large"
+          href="/profile"
+          style={{ margin: '8px' }}>
+          Profile
         </Button>
      </div> 
   );
 }
 
 Landing.propTypes = {
-    // eslint-disable-next-line react/forbid-prop-types
-    auth: PropTypes.object.isRequired,
-  };
-  
-  const mapStateToProps = (state) => ({
-    auth: state.auth,
-  });
-  
-  export default connect(mapStateToProps)(Landing);
+  // eslint-disable-next-line react/forbid-prop-types
+  auth: PropTypes.object.isRequired,
+};
+
+const mapStateToProps = (state) => ({
+  auth: state.auth,
+});
+
+export default connect(mapStateToProps)(Landing);
