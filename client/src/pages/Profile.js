@@ -32,7 +32,7 @@ const Profile = ({ auth, history }) => {
   
   const { id } = auth.user;
 
-  console.log(auth.user.user);
+  // console.log(auth.user.user);
 
   return (
     <div className="site-layout-content">

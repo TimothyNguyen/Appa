@@ -10,7 +10,7 @@ const routeUserToComponent = (userType) => {
 };
 
 const Home = ({ auth }) => {
-  console.log(auth);
+  // console.log(auth);
   const userType = auth.user.user_type;
   return <>{routeUserToComponent(userType)}</>;
 };

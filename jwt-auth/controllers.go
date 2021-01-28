@@ -73,15 +73,8 @@ func login(c *gin.Context) {
 	}
 
 	tokens := map[string]string{
-		"access_token":    td.AccessToken,
-		"refresh_token":   td.RefreshToken,
-		"id":              result.ID.String(),
-		"name":            result.Name,
-		"email":           result.Email,
-		"phone_number":    result.Password,
-		"github_username": result.GithubUsername,
-		"linkedin":        result.Linkedin,
-		"user_type":       result.UserType,
+		"access_token":  td.AccessToken,
+		"refresh_token": td.RefreshToken,
 	}
 	f.Status = "success"
 	f.Data = tokens
