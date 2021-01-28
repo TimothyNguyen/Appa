@@ -19,6 +19,7 @@ type User struct {
 	Date                 primitive.Timestamp `bson:"date" json:"date,omitempty"`
 	PasswordResetURLCode string              `bson:"password_reset_url_code" json:"password_reset_url_code,omitempty"`
 	VerificationURLCode  string              `bson:"verification_url_code" json: "verification_url_code,omitempty"`
+	UserType             string              `bson:"user_type" json: "user_type,omitempty"`
 }
 
 // Feedback - info required for sending feedback
@@ -36,4 +37,5 @@ type UserToken struct {
 	RefreshUUID  string
 	AtExpires    int64
 	RtExpires    int64
+	User         User
 }

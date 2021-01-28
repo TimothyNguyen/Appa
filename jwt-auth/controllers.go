@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +17,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 func login(c *gin.Context) {
 	var u User      // request form
@@ -33,7 +37,6 @@ func login(c *gin.Context) {
 	filter := bson.M{"email": u.Email}
 	err = userCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
-		fmt.Println(2)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "User not found")
 		c.JSON(http.StatusUnauthorized, f)
@@ -43,7 +46,6 @@ func login(c *gin.Context) {
 	// Authenticate user password (done)
 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(u.Password))
 	if err != nil {
-		fmt.Println(3)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Email or password incorrect")
 		c.JSON(http.StatusUnauthorized, f)
@@ -51,9 +53,8 @@ func login(c *gin.Context) {
 	}
 
 	// Create token pari
-	td, err := createToken(result.ID)
+	td, err := createTokenWithUser(result.ID, result)
 	if err != nil {
-		fmt.Println(4)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token not created")
 		f.Msgs = append(f.Msgs, err.Error())
@@ -64,7 +65,6 @@ func login(c *gin.Context) {
 	// save token into redis (done)
 	saveErr := createAuth(result.ID, td)
 	if saveErr != nil {
-		fmt.Println(5)
 		f.Status = "unsuccess"
 		f.Msgs = append(f.Msgs, "Token created but not saved")
 		f.Msgs = append(f.Msgs, saveErr.Error())
@@ -75,7 +75,6 @@ func login(c *gin.Context) {
 	tokens := map[string]string{
 		"access_token":  td.AccessToken,
 		"refresh_token": td.RefreshToken,
-		"token":         td.RefreshToken,
 	}
 	f.Status = "success"
 	f.Data = tokens
@@ -107,19 +106,41 @@ func register(c *gin.Context) {
 	}
 
 	// TODO: check email and password format is valid
+	validFormat, message := isEmailValid(u.Email, u.Password)
+	if !validFormat {
+		f.Status = "400"
+		f.Msgs = append(f.Msgs, message)
+		c.JSON(http.StatusUnauthorized, f)
+		return
+	}
 
 	// Hash User password and store it into database
 	bytes, err := bcrypt.GenerateFromPassword([]byte(u.Password), 5)
 	uuidWithHyphen := uuid.New()
 	uuid := strings.Replace(uuidWithHyphen.String(), "-", "", -1)
 
-	insertUser := User{
-		Name:                 u.Name,
-		Email:                u.Email,
-		Password:             string(bytes),
-		Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
-		VerificationURLCode:  uuid,
-		PasswordResetURLCode: "",
+	/*
+		insertUser := User{
+			Id:
+			Name:                 u.Name,
+			Email:                u.Email,
+			Password:             string(bytes),
+			Date:                 primitive.Timestamp{T: uint32(time.Now().Unix())},
+			VerificationURLCode:  ,
+			PasswordResetURLCode: "",
+		}
+	*/
+	insertUser := bson.M{
+		"name":                    u.Name,
+		"email":                   u.Email,
+		"password":                string(bytes),
+		"phone_number":            "",
+		"github_username":         "",
+		"linkedin":                "",
+		"date":                    primitive.Timestamp{T: uint32(time.Now().Unix())},
+		"verification_url_code":   uuid,
+		"password_reset_url_code": "",
+		"user_type":               "user",
 	}
 
 	_, err = userCollection.InsertOne(context.TODO(), insertUser)
@@ -131,6 +152,8 @@ func register(c *gin.Context) {
 }
 
 func refresh(c *gin.Context) {
+	//var result User // result from database
+
 	mapToken := map[string]string{}
 	if err := c.ShouldBindJSON(&mapToken); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, err.Error())
@@ -221,4 +244,29 @@ func logout(c *gin.Context) {
 	f := yFeedback(nil)
 	c.JSON(http.StatusOK, f)
 	return
+}
+
+// isEmailValid check if the email provided passes the required
+// structure and length test. It also checks the domain has a valid
+// MX record
+func isEmailValid(userEmail string, userPassword string) (bool, string) {
+	// 1. Looking at email
+	if len(userEmail) < 8 || len(userEmail) > 254 {
+		return false, "The length of the email isn't valid."
+	}
+	if !emailRegex.MatchString(userEmail) {
+		return false, "The provided email isn't a valid email"
+	}
+	parts := strings.Split(userEmail, "@")
+	mx, err := net.LookupMX(parts[1])
+	if err != nil || len(mx) == 0 {
+		return false, "The provided email isn't a valid email"
+	}
+
+	// 2. Looking at password
+	if len(userPassword) < 10 || len(userPassword) > 100 {
+		return false, "The length of the password is invalid. Needs to be between 10 and 100 characters."
+	}
+
+	return true, "The email and password is valid"
 }

@@ -77,6 +77,39 @@ func VerifyToken(tokenString string, secret []byte) (*jwt.Token, error) {
 	}
 	return token, nil
 }
+func createTokenWithUser(id primitive.ObjectID, result User) (UserToken, error) {
+	var err error
+	td := UserToken{}
+	empty := UserToken{}
+	td.AtExpires = time.Now().Add(time.Minute * 30).Unix()
+	td.AccessUUID = uuid.NewV4().String()
+	td.RtExpires = time.Now().Add(time.Hour * 24 * 14).Unix()
+	td.RefreshUUID = uuid.NewV4().String()
+	td.User = result
+	atClaim := jwt.MapClaims{}
+	atClaim["authorized"] = true
+	atClaim["access_uuid"] = td.AccessUUID
+	atClaim["_id"] = id
+	atClaim["expire"] = td.AtExpires
+	atClaim["user"] = td.User
+	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaim)
+	td.AccessToken, err = at.SignedString(accessSecret)
+	if err != nil {
+		return empty, err
+	}
+	rtClaim := jwt.MapClaims{}
+	rtClaim["refresh_uuid"] = td.RefreshUUID
+	rtClaim["_id"] = id
+	rtClaim["expire"] = td.RtExpires
+	rtClaim["user"] = td.User
+	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaim)
+	td.RefreshToken, err = rt.SignedString([]byte(refreshSecret))
+	if err != nil {
+		return empty, err
+	}
+	return td, nil
+}
+
 func createToken(id primitive.ObjectID) (UserToken, error) {
 	var err error
 	td := UserToken{}
@@ -95,7 +128,6 @@ func createToken(id primitive.ObjectID) (UserToken, error) {
 	if err != nil {
 		return empty, err
 	}
-
 	rtClaim := jwt.MapClaims{}
 	rtClaim["refresh_uuid"] = td.RefreshUUID
 	rtClaim["_id"] = id
@@ -107,3 +139,13 @@ func createToken(id primitive.ObjectID) (UserToken, error) {
 	}
 	return td, nil
 }
+
+/*
+"id":              result.ID.String(),
+		"name":            result.Name,
+		"email":           result.Email,
+		"phone_number":    result.Password,
+		"github_username": result.GithubUsername,
+		"linkedin":        result.Linkedin,
+		"user_type":       result.UserType,
+*/
