@@ -18,4 +18,4 @@ var collectionName = "users"
 
 var mongodbURL = os.Getenv("MONGODB_URL")
 
-var redisURL = "redis:6379"
+var redisURL = os.Getenv("REDIS_URL")
