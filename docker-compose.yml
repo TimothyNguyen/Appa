@@ -11,6 +11,7 @@ services:
             MONGODB_URL: ${MONGODB_URL}
             JWT_ACCESS_KEY: ${JWT_ACCESS_KEY}
             JWT_REFRESH_KEY: ${JWT_REFRESH_KEY}
+            REDIS_URL: ${REDIS_URL}
 
     redis:
         image: redis
